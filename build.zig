@@ -37,7 +37,7 @@ pub fn addWasmComponent(project: *std.Build, options: WasmComponentOptions) std.
 
 pub fn build(b: *std.Build) void {
     const calculator_mod = b.addModule("calculator", .{
-        .root_source_file = b.path("src/calculator.zig"),
+        .root_source_file = b.path("examples/calculator.zig"),
         .target = b.resolveTargetQuery(.{
             .cpu_arch = .wasm32,
             .os_tag = .freestanding,
@@ -48,7 +48,7 @@ pub fn build(b: *std.Build) void {
     const calculator_component = addWasmComponent(b, .{
         .name = "calculator",
         .root_module = calculator_mod,
-        .wit_path = b.path("wit/calculator.wit"),
+        .wit_path = b.path("examples/calculator.wit"),
         .world_name = "calculator",
     });
     const install_component = b.addInstallFile(calculator_component, "calculator.wasm");
