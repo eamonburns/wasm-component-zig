@@ -1,0 +1,19 @@
+package examples:canvas@0.1.23;
+
+interface types {
+    type dimension = u32;
+    record point {
+        x: dimension,
+        y: dimension,
+    }
+}
+
+interface if {
+    use types.{dimension, point};
+    type canvas-id = u64;
+    draw-line: func(canvas: canvas-id, start: point, end: point, thickness: dimension);
+}
+
+world canvas {
+    export if;
+}
