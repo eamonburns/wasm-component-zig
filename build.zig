@@ -18,7 +18,6 @@ pub fn addWasmComponent(project: *std.Build, options: WasmComponentOptions) std.
         "cm32p2|example:calculator/operations|multiply",
     };
     wasm_core_module.entry = .disabled;
-    wasm_core_module.root_module.strip = true;
 
     // Embed WIT into core module
     const component_embed_cmd = project.addSystemCommand(&.{ "wasm-tools", "component", "embed" });
