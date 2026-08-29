@@ -1,12 +1,20 @@
 const std = @import("std");
 
+const build_zig_zon = @import("build.zig.zon");
+
 pub const WasmComponentOptions = struct {
     name: []const u8,
-    root_source_file: std.Build.LazyPath,
+    /// Root module of the implementation.
+    /// Must conain implementations of all functions exported by the component.
+    /// (defined by `wit_path` and `world_name`)
+    root_module: *std.Build.Module,
+    /// Path to WIT package. Can either be a file or directory.
     wit_path: std.Build.LazyPath,
-    // TODO: Delete this (currently just a hack to avoid parsing WIT)
-    hacky_not_wit_path: std.Build.LazyPath,
+    /// Name of world within the WIT package
     world_name: []const u8,
+    /// Path to a CSV table of `<mangled name>,<pretty name>` pairs
+    /// TODO: Delete this (currently just a hack to avoid parsing WIT)
+    hacky_not_wit_path: std.Build.LazyPath,
 };
 
 pub fn addWasmComponent(project: *std.Build, options: WasmComponentOptions) std.Build.LazyPath {
@@ -16,6 +24,7 @@ pub fn addWasmComponent(project: *std.Build, options: WasmComponentOptions) std.
     const glue_mod = blk: {
         // TODO: const generate_glue_cmd = project.addRunArtifact(wasm_component.artifact("generate_glue"));
         const generate_cmd = project.addRunArtifact(generateGlueArtifact(wasm_component));
+        generate_cmd.addArg(build_zig_zon.version);
         // TODO: pass options.wit_path
         generate_cmd.addFileArg(options.hacky_not_wit_path);
         generate_cmd.addArg(options.world_name);
@@ -28,13 +37,12 @@ pub fn addWasmComponent(project: *std.Build, options: WasmComponentOptions) std.
                 .os_tag = .freestanding,
             }),
             .optimize = .ReleaseSmall,
-        });
-        mod.addAnonymousImport("impl", .{
-            // TODO: I think the module could just be passed directly
-            .root_source_file = options.root_source_file,
-        });
-        mod.addAnonymousImport("utils", .{
-            .root_source_file = wasm_component.path("src/utils.zig"),
+            .imports = &.{
+                .{ .name = "@impl", .module = options.root_module },
+                .{ .name = "@utils", .module = project.createModule(.{
+                    .root_source_file = wasm_component.path("src/utils.zig"),
+                }) },
+            },
         });
         break :blk mod;
     };
@@ -71,7 +79,9 @@ pub fn addWasmComponent(project: *std.Build, options: WasmComponentOptions) std.
 pub fn build(b: *std.Build) void {
     const calculator_component = addWasmComponent(b, .{
         .name = "calculator",
-        .root_source_file = b.path("examples/calculator.zig"),
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("examples/calculator.zig"),
+        }),
         .wit_path = b.path("examples/calculator.wit"),
         .hacky_not_wit_path = b.path("examples/calculator.not-wit"),
         .world_name = "calculator",
