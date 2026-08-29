@@ -2,15 +2,23 @@ const std = @import("std");
 
 pub const WasmComponentOptions = struct {
     name: []const u8,
-    root_module: *std.Build.Module,
+    root_source_file: std.Build.LazyPath,
     wit_path: std.Build.LazyPath,
     world_name: []const u8,
 };
+
 pub fn addWasmComponent(project: *std.Build, options: WasmComponentOptions) std.Build.LazyPath {
     // Create core module
     const wasm_core_module = project.addExecutable(.{
         .name = project.fmt("{s}.core", .{options.name}),
-        .root_module = options.root_module,
+        .root_module = project.createModule(.{
+            .root_source_file = options.root_source_file,
+            .target = project.resolveTargetQuery(.{
+                .cpu_arch = .wasm32,
+                .os_tag = .freestanding,
+            }),
+            .optimize = .ReleaseSmall,
+        }),
     });
     wasm_core_module.root_module.export_symbol_names = &.{
         // TODO: Generate export symbols from WIT
@@ -35,30 +43,11 @@ pub fn addWasmComponent(project: *std.Build, options: WasmComponentOptions) std.
 }
 
 pub fn build(b: *std.Build) void {
-    const calculator_mod = b.addModule("calculator", .{
-        .root_source_file = b.path("examples/calculator.zig"),
-        .target = b.resolveTargetQuery(.{
-            .cpu_arch = .wasm32,
-            .os_tag = .freestanding,
-        }),
-        .optimize = .ReleaseSmall,
-    });
-
     const calculator_component = addWasmComponent(b, .{
         .name = "calculator",
-        .root_module = calculator_mod,
+        .root_source_file = b.path("examples/calculator.zig"),
         .wit_path = b.path("examples/calculator.wit"),
         .world_name = "calculator",
     });
-    const install_component = b.addInstallFile(calculator_component, "calculator.wasm");
-    b.getInstallStep().dependOn(&install_component.step);
-
-    const mod_tests = b.addTest(.{
-        .root_module = calculator_mod,
-    });
-
-    const run_mod_tests = b.addRunArtifact(mod_tests);
-
-    const test_step = b.step("test", "Run tests");
-    test_step.dependOn(&run_mod_tests.step);
+    b.getInstallStep().dependOn(&b.addInstallFile(calculator_component, "calculator.wasm").step);
 }
