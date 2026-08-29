@@ -26,7 +26,7 @@ pub fn main(init: std.process.Init) !void {
     var output_writer = output_file.writer(io, &output_buf);
     const output = &output_writer.interface;
 
-    var exports: std.ArrayList(Export) = .empty;
+    var exports: std.ArrayList(wasm_component.Export) = .empty;
     defer exports.deinit(gpa);
 
     // TODO: Parse it!
@@ -74,56 +74,3 @@ pub fn main(init: std.process.Init) !void {
     }
     try output.flush();
 }
-
-const Export = union(enum) {
-    func: Func,
-
-    pub const Func = struct {
-        name: []const u8,
-        nice_name: []const u8,
-        param_list: []const wasm_component.Type,
-        return_list: wasm_component.Type,
-    };
-
-    pub fn render(ex: Export, writer: *Io.Writer) Io.Writer.Error!void {
-        switch (ex) {
-            .func => |func| {
-                try writer.print(
-                    \\
-                    \\export fn {f}(
-                , .{std.zig.fmtId(func.name)});
-                for (func.param_list, 0..) |param, i| {
-                    if (i != 0) try writer.writeAll(", ");
-                    try writer.print("param_{d}: {f}", .{ i, param });
-                }
-                try writer.print(") {f} {{", .{func.return_list});
-                // Function body
-                try writer.writeAll(
-                    \\
-                    \\    const param_tuple = .{
-                );
-                for (0..func.param_list.len) |i| {
-                    try writer.print(
-                        \\
-                        \\        param_{d},
-                    , .{i});
-                }
-                try writer.writeAll(
-                    \\
-                    \\    };
-                );
-                // TODO: Lift param_tuple to component types
-                // TODO: Lower return value to core type
-                try writer.print(
-                    \\
-                    \\    return @call(.auto, impl.{f}, param_tuple);
-                    // NOTE: could be: `return lowerFlat(Return, @call(.auto, impl.{f}, liftFlat(Params, param_tuple)))`
-                , .{std.zig.fmtId(func.nice_name)});
-                try writer.writeAll(
-                    \\
-                    \\}
-                );
-            },
-        }
-    }
-};
