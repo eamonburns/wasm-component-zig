@@ -94,12 +94,9 @@ const Export = union(enum) {
                 , .{std.zig.fmtId(func.name)});
                 for (func.param_list, 0..) |param, i| {
                     if (i != 0) try writer.writeAll(", ");
-                    try writer.print("param_{d}: ", .{i});
-                    try renderWasmComponentType(param, writer);
+                    try writer.print("param_{d}: {f}", .{ i, param });
                 }
-                try writer.writeAll(") ");
-                try renderWasmComponentType(func.return_list, writer);
-                try writer.writeAll(" {");
+                try writer.print(") {f} {{", .{func.return_list});
                 // Function body
                 try writer.writeAll(
                     \\
@@ -116,9 +113,11 @@ const Export = union(enum) {
                     \\    };
                 );
                 // TODO: Lift param_tuple to component types
+                // TODO: Lower return value to core type
                 try writer.print(
                     \\
                     \\    return @call(.auto, impl.{f}, param_tuple);
+                    // NOTE: could be: `return lowerFlat(Return, @call(.auto, impl.{f}, liftFlat(Params, param_tuple)))`
                 , .{std.zig.fmtId(func.nice_name)});
                 try writer.writeAll(
                     \\
@@ -128,13 +127,3 @@ const Export = union(enum) {
         }
     }
 };
-
-fn renderWasmComponentType(t: wasm_component.Type, writer: *Io.Writer) Io.Writer.Error!void {
-    switch (t) {
-        .u8, .u16, .u32, .u64 => try writer.writeAll(@tagName(t)),
-        .s8, .s16, .s32, .s64 => {
-            try writer.writeByte('i');
-            try writer.writeAll(@tagName(t)[1..]);
-        },
-    }
-}
