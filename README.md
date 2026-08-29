@@ -1,22 +1,18 @@
 Build core module:
 
 ```sh
-zig build-exe src/calculator.zig \
+zig build-exe ./examples/calculator.zig \
     -target wasm32-freestanding \
     -fno-entry \
     -O ReleaseSmall \
-    --export="cm32p2|example:calculator/operations|add" \
-    --export="cm32p2|example:calculator/operations|multiply" \
+    -rdynamic \
     -femit-bin=calculator.core.wasm
 ```
-
-> [!NOTE]
-> Without `--export=func`, the functions were being optimized out.
 
 Embed WIT:
 
 ```sh
-wasm-tools component embed ./wit/calculator.wit \
+wasm-tools component embed ./examples/calculator.wit \
     --world calculator \
     calculator.core.wasm \
     -o calculator.embedded.wasm
